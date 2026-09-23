@@ -12,7 +12,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 
 const { auditTrailFor } = await import("@/platform/audit/audit-log");
 const { kycCaseRepository } = await import("@/tools/kyc-review/data");
-const { addNote, decideCase } = await import("@/tools/kyc-review/actions");
+const { addNote, decideCase, escalateCase } = await import("@/tools/kyc-review/actions");
 
 const analyst = PERSONAS.find((p) => p.role === "analyst")!;
 const manager = PERSONAS.find((p) => p.role === "manager")!;
@@ -83,6 +83,19 @@ describe("defineAction", () => {
       outcome: "success",
       actorRole: "manager",
       summary: "Decision approved: EDD complete",
+    });
+  });
+
+  it("refuses a mutation a stale page offers on a closed case", async () => {
+    currentActor = manager;
+
+    const result = await escalateCase({ caseId: managerCase.id, reason: "second thoughts" });
+
+    expect(result).toMatchObject({ code: "conflict" });
+    expect(kycCaseRepository.require(managerCase.id).status).toBe("approved");
+    expect(auditTrailFor("kyc_case", managerCase.id)[0]).toMatchObject({
+      action: "kyc.case.escalate",
+      outcome: "denied",
     });
   });
 });

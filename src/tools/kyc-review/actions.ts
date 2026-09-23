@@ -10,10 +10,15 @@
 import { z } from "zod";
 import { defineAction } from "@/platform/actions/define-action";
 import { kycCaseRepository } from "@/tools/kyc-review/data";
+import { isOpen, type KycCase } from "@/tools/kyc-review/domain";
 
 const caseRef = z.object({ caseId: z.string().min(1) });
 
 const TOOL_PATH = "/tools/kyc-review";
+
+/** Decided cases are final; a stale page must not be able to reopen one. */
+const mustBeOpen = ({ resource }: { resource: unknown }) =>
+  isOpen(resource as KycCase) ? null : "This case is already closed.";
 
 /** Take ownership of an unclaimed case. */
 export const claimCase = defineAction({
@@ -22,6 +27,7 @@ export const claimCase = defineAction({
   input: caseRef,
   subject: ({ caseId }) => ({ type: "kyc_case", id: caseId }),
   loadResource: ({ caseId }) => kycCaseRepository.get(caseId),
+  precondition: mustBeOpen,
   handler: ({ actor, input }) =>
     kycCaseRepository.update(input.caseId, (kycCase) => ({
       ...kycCase,
@@ -38,6 +44,7 @@ export const addNote = defineAction({
   input: caseRef.extend({ body: z.string().min(1, "Note cannot be empty").max(500) }),
   subject: ({ caseId }) => ({ type: "kyc_case", id: caseId }),
   loadResource: ({ caseId }) => kycCaseRepository.get(caseId),
+  precondition: mustBeOpen,
   handler: ({ actor, input }) =>
     kycCaseRepository.update(input.caseId, (kycCase) => ({
       ...kycCase,
@@ -62,6 +69,7 @@ export const escalateCase = defineAction({
   input: caseRef.extend({ reason: z.string().min(1, "Give a reason").max(300) }),
   subject: ({ caseId }) => ({ type: "kyc_case", id: caseId }),
   loadResource: ({ caseId }) => kycCaseRepository.get(caseId),
+  precondition: mustBeOpen,
   handler: ({ input }) =>
     kycCaseRepository.update(input.caseId, (kycCase) => ({ ...kycCase, status: "escalated" })),
   summary: ({ input }) => `Escalated: ${input.reason}`,
@@ -77,6 +85,7 @@ export const decideCase = defineAction({
   }),
   subject: ({ caseId }) => ({ type: "kyc_case", id: caseId }),
   loadResource: ({ caseId }) => kycCaseRepository.get(caseId),
+  precondition: mustBeOpen,
   handler: ({ input }) =>
     kycCaseRepository.update(input.caseId, (kycCase) => ({ ...kycCase, status: input.outcome })),
   summary: ({ input }) => `Decision ${input.outcome}: ${input.reason}`,
@@ -89,6 +98,7 @@ export const assignCase = defineAction({
   input: caseRef.extend({ assigneeId: z.string().min(1) }),
   subject: ({ caseId }) => ({ type: "kyc_case", id: caseId }),
   loadResource: ({ caseId }) => kycCaseRepository.get(caseId),
+  precondition: mustBeOpen,
   handler: ({ input }) =>
     kycCaseRepository.update(input.caseId, (kycCase) => ({ ...kycCase, assigneeId: input.assigneeId })),
   summary: ({ input }) => `Assigned to ${input.assigneeId}`,

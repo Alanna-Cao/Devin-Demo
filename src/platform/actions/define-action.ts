@@ -7,7 +7,7 @@ import { describeActor, recordAuditEvent } from "@/platform/audit/audit-log";
 
 export type ActionResult<TOutput> =
   | { ok: true; data: TOutput }
-  | { ok: false; error: string; code: "unauthorized" | "invalid_input" | "failed" };
+  | { ok: false; error: string; code: "unauthorized" | "invalid_input" | "conflict" | "failed" };
 
 export interface ActionDefinition<TSchema extends z.ZodTypeAny, TOutput> {
   /** Dotted, tool-owned name. Doubles as the audit action, e.g. `kyc.case.approve`. */
@@ -21,6 +21,12 @@ export interface ActionDefinition<TSchema extends z.ZodTypeAny, TOutput> {
    * resource-level scope rule (e.g. "analysts only act on their own cases").
    */
   loadResource?: (input: z.infer<TSchema>) => unknown;
+  /**
+   * Business-rule check run after authorization, against the state the server
+   * sees right now. Return a message to refuse the mutation; UI gating alone
+   * cannot be trusted, because a stale page still holds a live action handle.
+   */
+  precondition?: (context: { actor: Actor; input: z.infer<TSchema>; resource: unknown }) => string | null;
   handler: (context: { actor: Actor; input: z.infer<TSchema> }) => TOutput;
   /** One-line human description stored on the audit event. */
   summary: (context: { actor: Actor; input: z.infer<TSchema> }) => string;
@@ -32,7 +38,8 @@ export interface ActionDefinition<TSchema extends z.ZodTypeAny, TOutput> {
  * The only way tools should mutate state.
  *
  * Every call runs the same pipeline: resolve actor -> validate input ->
- * authorize (role grant + resource scope) -> execute -> write an audit event.
+ * authorize (role grant + resource scope) -> check preconditions -> execute ->
+ * write an audit event.
  * Denied and failed attempts are audited too, so authorization and auditing
  * cannot be forgotten by a tool author.
  */
@@ -75,6 +82,22 @@ export function defineAction<TSchema extends z.ZodTypeAny, TOutput>(
         summary: `Denied: missing ${definition.permission}`,
       });
       return { ok: false, code: "unauthorized", error: "You do not have permission to do that." };
+    }
+
+    const conflict = assertSync(
+      definition.precondition?.({ actor, input, resource }) ?? null,
+      "precondition",
+    );
+    if (conflict) {
+      recordAuditEvent({
+        ...describeActor(actor),
+        action: definition.name,
+        subjectType: subject.type,
+        subjectId: subject.id,
+        outcome: "denied",
+        summary: `Refused: ${conflict}`,
+      });
+      return { ok: false, code: "conflict", error: conflict };
     }
 
     try {

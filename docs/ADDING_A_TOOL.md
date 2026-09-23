@@ -42,7 +42,7 @@ Filter lists through `can(actor, "<tool>.record.read", record)` so visibility is
 
 ## 4. `src/tools/<tool>/actions.ts` + `server-actions.ts` — mutations
 
-Every mutation is a `defineAction()`. Supply `permission`, a Zod `input` schema, the `subject` being acted on, `loadResource` (so resource scopes apply), the `handler`, and a one-line `summary` for the audit trail. Authorization, validation and auditing come from the wrapper — do not re-implement them, and do not mutate a repository outside one.
+Every mutation is a `defineAction()`. Supply `permission`, a Zod `input` schema, the `subject` being acted on, `loadResource` (so resource scopes apply), the `handler`, and a one-line `summary` for the audit trail. Use `precondition` for business rules the UI also enforces (e.g. "a decided case is final") — a stale page still holds a live handle to the action, so hiding a control is not enforcement. Authorization, validation and auditing come from the wrapper — do not re-implement them, and do not mutate a repository outside one.
 
 Keep the definitions in `actions.ts` **without** a `"use server"` directive, and expose them from a separate `server-actions.ts` that contains nothing but one thin async wrapper per action. Next.js compiles every function in a `"use server"` module into an individually addressable endpoint, so defining actions there would publish their handlers and resource loaders as callable server actions that skip the pipeline. `defineAction()` throws if it detects this arrangement.
 
