@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { ActionResult } from "@/platform/actions/define-action";
-import { addNote, assignCase, claimCase, decideCase, escalateCase } from "@/tools/kyc-review/actions";
+import { addNote, assignCase, claimCase, decideCase, escalateCase } from "@/tools/kyc-review/server-actions";
 
 /**
  * Thin client wrappers around the tool's server actions. They render the

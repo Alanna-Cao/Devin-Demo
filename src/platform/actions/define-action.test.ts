@@ -20,6 +20,25 @@ const manager = PERSONAS.find((p) => p.role === "manager")!;
 const analystCase = kycCaseRepository.list().find((c) => c.assigneeId === analyst.id && c.status === "in_review")!;
 const managerCase = kycCaseRepository.list().find((c) => c.assigneeId === manager.id && c.status === "in_review")!;
 
+describe("defineAction misuse guard", () => {
+  it("fails loudly if its callbacks were turned into server actions", async () => {
+    const { defineAction } = await import("@/platform/actions/define-action");
+    const { z } = await import("zod");
+
+    const action = defineAction({
+      name: "kyc.case.note",
+      permission: "kyc.case.note",
+      input: z.object({ caseId: z.string() }),
+      // What Next.js produces when actions are defined in a "use server" module.
+      subject: (async () => ({ type: "kyc_case", id: "case_1" })) as never,
+      handler: () => undefined,
+      summary: () => "",
+    });
+
+    await expect(action({ caseId: "case_1" })).rejects.toThrow(/returned a promise/);
+  });
+});
+
 describe("defineAction", () => {
   beforeEach(() => {
     currentActor = analyst;

@@ -1,5 +1,12 @@
-"use server";
-
+/**
+ * Action definitions for this tool.
+ *
+ * Deliberately NOT a `"use server"` module: Next.js turns every function in
+ * such a module — including the callbacks passed to `defineAction()` — into a
+ * separately addressable server action, which both breaks them (they come back
+ * as promises) and exposes unauthorized handlers over HTTP. The thin `"use
+ * server"` wrappers the UI calls live in `server-actions.ts`.
+ */
 import { z } from "zod";
 import { defineAction } from "@/platform/actions/define-action";
 import { kycCaseRepository } from "@/tools/kyc-review/data";

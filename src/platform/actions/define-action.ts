@@ -39,6 +39,21 @@ export interface ActionDefinition<TSchema extends z.ZodTypeAny, TOutput> {
 export function defineAction<TSchema extends z.ZodTypeAny, TOutput>(
   definition: ActionDefinition<TSchema, TOutput>,
 ) {
+  /**
+   * Guards the one way this wrapper can be defeated: defining actions inside a
+   * `"use server"` module turns these callbacks into server-action references
+   * that return promises, which would silently reduce every authorization
+   * check to a deny. Fail loudly instead.
+   */
+  function assertSync<T>(value: T, callback: string): T {
+    if (value instanceof Promise) {
+      throw new Error(
+        `${definition.name}: ${callback}() returned a promise. Define actions outside a "use server" module.`,
+      );
+    }
+    return value;
+  }
+
   return async function runAction(rawInput: unknown): Promise<ActionResult<TOutput>> {
     const actor = getCurrentActor();
 
@@ -47,9 +62,9 @@ export function defineAction<TSchema extends z.ZodTypeAny, TOutput>(
       return { ok: false, code: "invalid_input", error: parsed.error.issues[0]?.message ?? "Invalid input" };
     }
     const input = parsed.data as z.infer<TSchema>;
-    const subject = definition.subject(input);
+    const subject = assertSync(definition.subject(input), "subject");
 
-    const resource = definition.loadResource?.(input);
+    const resource = assertSync(definition.loadResource?.(input), "loadResource");
     if (!can(actor, definition.permission, resource)) {
       recordAuditEvent({
         ...describeActor(actor),
