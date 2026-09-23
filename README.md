@@ -2,7 +2,7 @@
 
 A proof of concept for replacing a Power Apps internal tools estate with conventional code. The point of this repo is the **foundation**, not the first tool: authentication, authorization, auditing, data access and navigation are platform concerns, and a tool is a folder that plugs into them.
 
-The included tool — **KYC Review Queue** — exists to prove the foundation carries a real workflow.
+Two tools sit on it: **KYC Review Queue** and **Refund Review**. The second exists to show what a subsequent tool costs — a folder under `src/tools/`, its routes, and one registry entry.
 
 ```bash
 npm install
@@ -29,6 +29,7 @@ src/platform/      the reusable foundation — shared by every tool
   ui/              AppShell, DataTable, FilterBar, Can, AuditTrail, StatusBadge
 src/tools/         one folder per tool
   kyc-review/      tool.config.ts, domain, data, queries, actions, components
+  refund-review/   same shape; value-based approval authority as a policy scope
 src/app/           thin Next.js routing that mounts registered tools
 ```
 
@@ -46,11 +47,13 @@ Switch personas from the header dropdown — the session stub reads a cookie, so
 
 | Persona | Sees | Can |
 | --- | --- | --- |
-| Dana Okafor — Admin | all cases | everything, including reassignment |
-| Priya Raman — Compliance Manager | all cases | approve / reject / escalate / assign |
-| Sam Ellis — KYC Analyst | own + unclaimed cases | claim, note, escalate — **not** decide |
+| Dana Okafor — Admin | all cases and refunds | everything, including reassignment and refunds of any value |
+| Priya Raman — Compliance Manager | all cases and refunds | approve / reject / escalate / assign; refunds **under $5,000** only |
+| Sam Ellis — Analyst | own + unclaimed cases, all refunds | claim, note, escalate — **not** decide, and never a refund |
 
-Demo path: as the analyst, open a case and note there is no approve control and an explicit "your role cannot approve" message; switch to the manager, approve it with a reason; the case's audit trail shows the manager's approval alongside any denied analyst attempt.
+Refund demo path: as the manager, approve a small refund; open a refund of $5,000 or more and the decision controls are replaced by an explanation. Calling the server action anyway — the `refunds.request.decide` scope is checked inside `defineAction()` — is denied and audited (`src/tools/refund-review/rules.test.ts`).
+
+KYC demo path: as the analyst, open a case and note there is no approve control and an explicit "your role cannot approve" message; switch to the manager, approve it with a reason; the case's audit trail shows the manager's approval alongside any denied analyst attempt.
 
 ## Adding the next tool
 
