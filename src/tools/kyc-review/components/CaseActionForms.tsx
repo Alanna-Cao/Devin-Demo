@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState } from "react";
 import type { ActionResult } from "@/platform/actions/define-action";
 import { addNote, assignCase, claimCase, decideCase, escalateCase } from "@/tools/kyc-review/server-actions";
 
@@ -8,18 +8,31 @@ import { addNote, assignCase, claimCase, decideCase, escalateCase } from "@/tool
  * Thin client wrappers around the tool's server actions. They render the
  * result of `defineAction()` uniformly, including the "not authorized" path a
  * persona hits if they call an action they cannot see the button for.
+ *
+ * `pending` is tracked explicitly rather than with `useTransition`, whose
+ * React 18 pending flag stops covering an async callback once it suspends —
+ * controls would re-enable mid-request and admit a duplicate mutation.
  */
 function useAction() {
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inFlight = useRef(false);
 
-  function run(fn: () => Promise<ActionResult<unknown>>, onDone?: () => void) {
+  async function run(fn: () => Promise<ActionResult<unknown>>, onDone?: () => void) {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setPending(true);
     setError(null);
-    startTransition(async () => {
+    try {
       const result = await fn();
       if (!result.ok) setError(result.error);
       else onDone?.();
-    });
+    } catch {
+      setError("Could not reach the server. Nothing was changed.");
+    } finally {
+      inFlight.current = false;
+      setPending(false);
+    }
   }
 
   return { pending, error, run };

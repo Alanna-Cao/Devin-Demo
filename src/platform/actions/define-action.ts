@@ -27,7 +27,7 @@ export interface ActionDefinition<TSchema extends z.ZodTypeAny, TOutput> {
    * cannot be trusted, because a stale page still holds a live action handle.
    */
   precondition?: (context: { actor: Actor; input: z.infer<TSchema>; resource: unknown }) => string | null;
-  handler: (context: { actor: Actor; input: z.infer<TSchema> }) => TOutput;
+  handler: (context: { actor: Actor; input: z.infer<TSchema> }) => TOutput | Promise<TOutput>;
   /** One-line human description stored on the audit event. */
   summary: (context: { actor: Actor; input: z.infer<TSchema> }) => string;
   /** Paths to revalidate after a successful mutation. */
@@ -72,14 +72,20 @@ export function defineAction<TSchema extends z.ZodTypeAny, TOutput>(
     const subject = assertSync(definition.subject(input), "subject");
 
     const resource = assertSync(definition.loadResource?.(input), "loadResource");
-    if (!can(actor, definition.permission, resource)) {
+    // A scoped action whose record is missing must not fall back to the
+    // role-only check: without the record there is nothing to scope against.
+    // It is reported as unauthorized so ids cannot be probed for existence.
+    const missingResource = definition.loadResource !== undefined && resource == null;
+    if (missingResource || !can(actor, definition.permission, resource)) {
       recordAuditEvent({
         ...describeActor(actor),
         action: definition.name,
         subjectType: subject.type,
         subjectId: subject.id,
         outcome: "denied",
-        summary: `Denied: missing ${definition.permission}`,
+        summary: missingResource
+          ? `Denied: ${subject.type} ${subject.id} not found`
+          : `Denied: missing ${definition.permission}`,
       });
       return { ok: false, code: "unauthorized", error: "You do not have permission to do that." };
     }
@@ -101,7 +107,7 @@ export function defineAction<TSchema extends z.ZodTypeAny, TOutput>(
     }
 
     try {
-      const data = definition.handler({ actor, input });
+      const data = await definition.handler({ actor, input });
       recordAuditEvent({
         ...describeActor(actor),
         action: definition.name,

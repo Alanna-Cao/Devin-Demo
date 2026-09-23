@@ -86,6 +86,36 @@ describe("defineAction", () => {
     });
   });
 
+  it("denies a scoped action whose record does not exist, instead of falling back to the role grant", async () => {
+    currentActor = manager;
+
+    const result = await addNote({ caseId: "case_does_not_exist", body: "probing" });
+
+    expect(result).toMatchObject({ code: "unauthorized" });
+    expect(auditTrailFor("kyc_case", "case_does_not_exist")[0]).toMatchObject({ outcome: "denied" });
+  });
+
+  it("awaits an async handler before auditing success", async () => {
+    const { defineAction } = await import("@/platform/actions/define-action");
+    const { z } = await import("zod");
+
+    const action = defineAction({
+      name: "kyc.case.note",
+      permission: "kyc.case.note",
+      input: z.object({ caseId: z.string() }),
+      subject: ({ caseId }) => ({ type: "kyc_case", id: caseId }),
+      handler: async () => {
+        throw new Error("backend unavailable");
+      },
+      summary: () => "should not be audited as success",
+    });
+
+    const result = await action({ caseId: analystCase.id });
+
+    expect(result).toMatchObject({ code: "failed" });
+    expect(auditTrailFor("kyc_case", analystCase.id)[0]).toMatchObject({ outcome: "error" });
+  });
+
   it("refuses a mutation a stale page offers on a closed case", async () => {
     currentActor = manager;
 
