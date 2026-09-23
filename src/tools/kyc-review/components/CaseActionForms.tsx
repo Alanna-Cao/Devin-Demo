@@ -26,11 +26,15 @@ function useAction() {
 }
 
 const buttonClass =
-  "rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50";
-const inputClass = "w-full rounded-md border border-slate-300 px-3 py-2 text-sm";
+  "inline-flex w-full items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40";
+const inputClass = "field";
 
 function ErrorText({ error }: { error: string | null }) {
-  return error ? <p className="text-sm text-red-700">{error}</p> : null;
+  return error ? (
+    <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs text-red-800">
+      {error}
+    </p>
+  ) : null;
 }
 
 export function ClaimButton({ caseId }: { caseId: string }) {
@@ -38,8 +42,9 @@ export function ClaimButton({ caseId }: { caseId: string }) {
   return (
     <div className="space-y-1">
       <button className={buttonClass} disabled={pending} onClick={() => run(() => claimCase({ caseId }))}>
-        Claim case
+        {pending ? "Claiming…" : "Claim case"}
       </button>
+      <p className="text-xs text-slate-500">Takes ownership and moves the case into review.</p>
       <ErrorText error={error} />
     </div>
   );
@@ -53,7 +58,7 @@ export function NoteForm({ caseId }: { caseId: string }) {
       <textarea
         value={body}
         onChange={(event) => setBody(event.target.value)}
-        rows={2}
+        rows={3}
         placeholder="Add a review note…"
         className={inputClass}
       />
@@ -105,14 +110,14 @@ export function DecisionForm({ caseId }: { caseId: string }) {
       />
       <div className="flex gap-2">
         <button
-          className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="flex-1 rounded-md bg-emerald-700 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
           disabled={pending || reason.trim() === ""}
           onClick={() => run(() => decideCase({ caseId, outcome: "approved", reason }), () => setReason(""))}
         >
           Approve
         </button>
         <button
-          className="rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="flex-1 rounded-md border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-700 shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
           disabled={pending || reason.trim() === ""}
           onClick={() => run(() => decideCase({ caseId, outcome: "rejected", reason }), () => setReason(""))}
         >

@@ -17,15 +17,21 @@ export function AuditTrail({ events }: { events: AuditEvent[] }) {
   }
 
   return (
-    <ol className="space-y-3">
+    <ol className="space-y-4 border-l border-slate-200 pl-4">
       {events.map((event) => (
-        <li key={event.id} className="border-l-2 border-slate-200 pl-3">
-          <div className="flex items-center gap-2">
-            <code className="text-xs text-slate-500">{event.action}</code>
+        <li key={event.id} className="relative">
+          <span
+            aria-hidden
+            className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full border border-white bg-slate-300"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">
+              {event.action}
+            </code>
             <StatusBadge label={event.outcome} tone={OUTCOME_TONE[event.outcome]} />
           </div>
-          <p className="text-sm text-slate-800">{event.summary}</p>
-          <p className="text-xs text-slate-500">
+          <p className="mt-1 text-sm text-slate-800">{event.summary}</p>
+          <p className="mt-0.5 text-xs text-slate-500">
             {event.actorName} ({event.actorRole}) · {new Date(event.at).toLocaleString()}
           </p>
         </li>

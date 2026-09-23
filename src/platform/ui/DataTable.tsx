@@ -26,19 +26,24 @@ export function DataTable<T extends { id: string }>({
 }) {
   if (rows.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
-        {emptyMessage}
+      <div className="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center">
+        <p className="text-sm font-medium text-slate-700">{emptyMessage}</p>
+        <p className="mt-1 text-xs text-slate-500">Adjust the filters above to widen the search.</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-          <tr>
+    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+      <table className="w-full border-collapse text-left text-sm tabular-nums">
+        <thead>
+          <tr className="border-b border-slate-200 bg-slate-50">
             {columns.map((column) => (
-              <th key={column.key} className={`px-4 py-3 font-medium ${column.className ?? ""}`}>
+              <th
+                key={column.key}
+                scope="col"
+                className={`whitespace-nowrap px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 ${column.className ?? ""}`}
+              >
                 {column.header}
               </th>
             ))}
@@ -46,11 +51,17 @@ export function DataTable<T extends { id: string }>({
         </thead>
         <tbody className="divide-y divide-slate-100">
           {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-slate-50">
+            <tr key={row.id} className="transition-colors hover:bg-slate-50">
               {columns.map((column, index) => (
-                <td key={column.key} className={`px-4 py-3 align-middle ${column.className ?? ""}`}>
+                <td
+                  key={column.key}
+                  className={`px-4 py-3 align-middle text-slate-700 ${column.className ?? ""}`}
+                >
                   {index === 0 && rowHref ? (
-                    <Link href={rowHref(row)} className="font-medium text-blue-700 hover:underline">
+                    <Link
+                      href={rowHref(row)}
+                      className="font-medium text-slate-900 underline-offset-4 hover:text-blue-700 hover:underline"
+                    >
                       {column.render(row)}
                     </Link>
                   ) : (

@@ -5,7 +5,7 @@ import { FilterBar } from "@/platform/ui/FilterBar";
 import { PageHeader } from "@/platform/ui/PageHeader";
 import { StatusBadge, type Tone } from "@/platform/ui/StatusBadge";
 import { listVisibleCases, type QueueFilters } from "@/tools/kyc-review/queries";
-import { CASE_STATUSES, RISK_BANDS, STATUS_LABELS, type KycCase } from "@/tools/kyc-review/domain";
+import { CASE_STATUSES, RISK_BANDS, STATUS_LABELS, isOpen, type KycCase } from "@/tools/kyc-review/domain";
 
 const STATUS_TONE: Record<KycCase["status"], Tone> = {
   new: "neutral",
@@ -30,11 +30,24 @@ function assigneeName(assigneeId: string | null): string {
 export default function KycQueuePage({ searchParams }: { searchParams: QueueFilters }) {
   const actor = getCurrentActor();
   const cases = listVisibleCases(actor, searchParams);
+  const openCount = cases.filter(isOpen).length;
 
   const columns: Column<KycCase>[] = [
-    { key: "reference", header: "Case", render: (row) => row.reference },
-    { key: "applicant", header: "Applicant", render: (row) => row.applicantAlias },
-    { key: "type", header: "Type", render: (row) => row.entityType },
+    {
+      key: "reference",
+      header: "Case",
+      render: (row) => <span className="font-mono text-[13px]">{row.reference}</span>,
+    },
+    {
+      key: "applicant",
+      header: "Applicant",
+      render: (row) => <span className="text-slate-900">{row.applicantAlias}</span>,
+    },
+    {
+      key: "type",
+      header: "Type",
+      render: (row) => <span className="capitalize">{row.entityType}</span>,
+    },
     { key: "jurisdiction", header: "Jurisdiction", render: (row) => row.jurisdiction },
     {
       key: "risk",
@@ -46,22 +59,48 @@ export default function KycQueuePage({ searchParams }: { searchParams: QueueFilt
       header: "Status",
       render: (row) => <StatusBadge label={STATUS_LABELS[row.status]} tone={STATUS_TONE[row.status]} />,
     },
-    { key: "assignee", header: "Assignee", render: (row) => assigneeName(row.assigneeId) },
+    {
+      key: "assignee",
+      header: "Assignee",
+      render: (row) =>
+        row.assigneeId === null ? (
+          <span className="text-slate-400">Unassigned</span>
+        ) : (
+          <span>{row.assigneeId === actor.id ? "You" : assigneeName(row.assigneeId)}</span>
+        ),
+    },
     {
       key: "submitted",
       header: "Submitted",
-      render: (row) => new Date(row.submittedAt).toLocaleDateString(),
+      className: "text-right",
+      render: (row) => (
+        <span className="text-slate-500">{new Date(row.submittedAt).toLocaleDateString()}</span>
+      ),
     },
   ];
 
   return (
     <div className="space-y-5">
       <PageHeader
+        eyebrow="Compliance"
         title="KYC Review Queue"
         description={
           actor.role === "analyst"
             ? "Your assigned cases plus anything unclaimed. Visibility is enforced server-side."
             : "All customer due-diligence cases."
+        }
+        actions={
+          <div className="flex items-center gap-4 rounded-lg border border-slate-200 bg-white px-4 py-2 shadow-sm">
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Visible</p>
+              <p className="text-lg font-semibold tabular-nums text-slate-900">{cases.length}</p>
+            </div>
+            <div className="h-8 w-px bg-slate-200" />
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Open</p>
+              <p className="text-lg font-semibold tabular-nums text-slate-900">{openCount}</p>
+            </div>
+          </div>
         }
       />
 
@@ -81,8 +120,6 @@ export default function KycQueuePage({ searchParams }: { searchParams: QueueFilt
           { name: "mine", label: "Assignment", options: [{ value: "1", label: "Assigned to me" }] },
         ]}
       />
-
-      <p className="text-xs text-slate-500">{cases.length} case(s) visible to you</p>
 
       <DataTable
         rows={cases}

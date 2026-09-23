@@ -41,9 +41,9 @@ export function FilterBar({
   );
 
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      <label className="flex flex-col text-xs font-medium text-slate-500">
-        Search
+    <div className="flex flex-wrap items-end gap-x-4 gap-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <label className="flex flex-col gap-1">
+        <span className="field-label">Search</span>
         <input
           type="search"
           value={query}
@@ -52,16 +52,16 @@ export function FilterBar({
             setQuery(event.target.value);
             setParam("q", event.target.value);
           }}
-          className="mt-1 w-64 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900"
+          className="field w-72"
         />
       </label>
       {filters.map((filter) => (
-        <label key={filter.name} className="flex flex-col text-xs font-medium text-slate-500">
-          {filter.label}
+        <label key={filter.name} className="flex flex-col gap-1">
+          <span className="field-label">{filter.label}</span>
           <select
             value={searchParams.get(filter.name) ?? ""}
             onChange={(event) => setParam(filter.name, event.target.value)}
-            className="mt-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+            className="field w-44 capitalize"
           >
             <option value="">All</option>
             {filter.options.map((option) => (
