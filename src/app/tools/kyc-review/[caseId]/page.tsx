@@ -69,11 +69,13 @@ export default function KycCasePage({ params }: { params: { caseId: string } }) 
               ))}
               {kycCase.notes.length === 0 ? <li className="text-sm text-slate-500">No notes yet.</li> : null}
             </ul>
-            <div className="mt-3">
-              <Can actor={actor} permission="kyc.case.note" resource={kycCase}>
-                <NoteForm caseId={kycCase.id} />
-              </Can>
-            </div>
+            {isOpen(kycCase) ? (
+              <div className="mt-3">
+                <Can actor={actor} permission="kyc.case.note" resource={kycCase}>
+                  <NoteForm caseId={kycCase.id} />
+                </Can>
+              </div>
+            ) : null}
           </div>
         </section>
 
